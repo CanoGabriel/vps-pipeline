@@ -7,29 +7,15 @@ jobs:
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v2
-      - name: Setup node
-        uses: actions/setup-node@v1
-        with:
-          node-version: 12
-      - name: Install dependencies
-        run: npm ci
-      - name: Push to Docker Hub
+      - name: extract package.json version
+        id: extract_version
+        uses: Saionaro/extract-package-version@v1.1.1
+      - name: Build image and Push to Docker Hub
         uses: docker/build-push-action@v1
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
-          repository: "roxogdocker/react-ui"
-          tags: "latest"
-  fetch_and_deploy:
-    name: Get provided docker image and deploy to VPS
-    runs-on: ubuntu-latest
-    steps:
-      - name: executing remote ssh commands using password
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.VPS_SSH_HOST }}
-          username: ${{ secrets.VPS_SSH_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT }}
-          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
-          script: ls -al
+          repository: ${{ secrets.DOCKER_HUB_REPOSITORY }}
+          tags: latest,${{ steps.extract_version.outputs.version }},${{ steps.extract_version.outputs.version }}-${{ github.run_number }}
+      - name: Print version
+        run: echo "${{ steps.extract_version.outputs.version }}-${{ github.run_number }}"

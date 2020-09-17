@@ -1,0 +1,52 @@
+name: Fetch and deploy over SSH
+on: 
+  workflow_dispatch:
+    inputs:
+      appSemVer:  # id of input
+        description: "SemVer to deploy"
+        required: true
+        default: 'latest'
+jobs:
+  fetch_and_deploy:
+    name: Get provided docker image and deploy to VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: executing remote ssh commands using password
+        uses: appleboy/ssh-action@master
+        env:
+          DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}        
+          DOCKER_HUB_REPOSITORY: ${{ secrets.DOCKER_HUB_REPOSITORY }}        
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          username: ${{ secrets.VPS_SSH_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          envs: DOCKER_HUB_PASSWORD, DOCKER_HUB_USERNAME, DOCKER_HUB_REPOSITORY
+          script: |
+            docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+            
+            if [ $(docker ps -f name=blue -q) ]
+            then
+                ENV="green"
+                OLD="blue"
+            else
+                ENV="blue"
+                OLD="green"
+            fi
+
+            echo "Starting "$ENV" container"
+            docker run -d --name $ENV -p 3000:80 "$DOCKER_HUB_REPOSITORY:${{ github.event.inputs.appSemVer }}"
+
+            if [ $(docker ps -f name=$OLD -q) ]
+            then
+                echo "Waiting..."
+                sleep 5s
+                echo "Stopping "$OLD" container"
+                docker container stop $OLD
+                docker container rm $OLD
+            fi
+            docker logout
+      - name: Print deployed version
+        run: echo "${{ github.event.inputs.appSemVer }}-$GITHUB_RUN_NUMBER ($GITHUB_RUN_ID)"
