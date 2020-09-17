@@ -1,7 +1,7 @@
 name: Publish Docker image
 on: workflow_dispatch
 jobs:
-  push_to_registry:
+  build_and_publish:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
     steps:
@@ -20,3 +20,16 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
           repository: "roxogdocker/react-ui"
           tags: "latest"
+  fetch_and_deploy:
+    name: Get provided docker image and deploy to VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: executing remote ssh commands using password
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          username: ${{ secrets.VPS_SSH_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: ls -al
